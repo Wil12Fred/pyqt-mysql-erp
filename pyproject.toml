@@ -1,0 +1,14 @@
+[project]
+name = "bderp"
+version = "0.1.0"
+description = "PyQt5 + MySQL desktop ERP prototype (purchases, sales, HR, stock-market tweets)"
+requires-python = ">=3.9"
+dependencies = [
+    "PyQt5>=5.15,<5.16",
+    "PyMySQL>=1.1,<2",
+    "python-twitter>=3.5,<4",
+    "beautifulsoup4>=4.12,<5",
+]
+
+[tool.uv]
+package = false
