@@ -17,6 +17,10 @@ dependencies = [
     { name = "beautifulsoup4" },
     { name = "pymysql", extra = ["rsa"] },
     { name = "pyqt5" },
+]
+
+[package.optional-dependencies]
+twitter = [
     { name = "python-twitter" },
 ]
 
@@ -25,8 +29,9 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.12,<5" },
     { name = "pymysql", extras = ["rsa"], specifier = ">=1.1,<2" },
     { name = "pyqt5", specifier = ">=5.15,<5.16" },
-    { name = "python-twitter", specifier = ">=3.5,<4" },
+    { name = "python-twitter", marker = "extra == 'twitter'", specifier = ">=3.5,<4" },
 ]
+provides-extras = ["twitter"]
 
 [[package]]
 name = "beautifulsoup4"
