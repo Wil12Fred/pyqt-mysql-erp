@@ -1,7 +1,6 @@
 #Imports
 from bs4 import BeautifulSoup
-import urllib
-import infoBolsa
+import urllib.request
 import sys
 import os
 import pymysql
@@ -21,6 +20,14 @@ class mdiChildUI(QMdiSubWindow):
   def __init__(self,archivoUI):
     super(mdiChildUI,self).__init__()
     uic.loadUi(archivoUI,self)
+
+#La ventana Bolsa de Valores usa la API v1.1 de Twitter, que ya no es gratuita:
+#queda desactivada salvo que BDERP_TWITTER_ENABLED=1 (requiere `uv sync --extra twitter`)
+def twitterActivado():
+  return os.environ.get('BDERP_TWITTER_ENABLED','0')=='1'
+
+#Tablas cuyo ultimo ID se consulta (ver ultimoID)
+TABLAS_CON_ID = {"ventas","compras","cliente","distribuidor","empleados"}
 
 #Iniciar la base de datos en mysql
 def iniciarBD(host,user,password,db):
@@ -62,7 +69,10 @@ class MainWindow(QMainWindow):
     self.windowMapper = QSignalMapper(self)
     self.titlesProducto=["Id","Nombre","Precio","Cantidad"]
     self.titlesEmpleado=["ID","Nombre","Puesto"]
-    self.iBolsa=infoBolsa.infBolsa()
+    self.iBolsa=None
+    if twitterActivado():
+      import infoBolsa
+      self.iBolsa=infoBolsa.infBolsa()
 
     #Ventanas hijas
     self.login=loginChild()
@@ -95,7 +105,8 @@ class MainWindow(QMainWindow):
     mdiArea.addSubWindow(compras)
     mdiArea.addSubWindow(ventas)
     mdiArea.addSubWindow(RRHH)
-    mdiArea.addSubWindow(informacionBolsa)
+    if self.iBolsa is not None:
+      mdiArea.addSubWindow(informacionBolsa)
 
     #Añadiendo menus
     #Menu Cuenta
@@ -107,7 +118,8 @@ class MainWindow(QMainWindow):
     opcion.addAction("Compras")
     opcion.addAction("Ventas")
     opcion.addAction("RRHH")
-    opcion.addAction("Bolsa de Valores")
+    if self.iBolsa is not None:
+      opcion.addAction("Bolsa de Valores")
 
     #Iniciando Presentación
     self.setCentralWidget(mdiArea)
@@ -161,14 +173,14 @@ class MainWindow(QMainWindow):
   
   def guardarClienteBD(self,ID,nombre,RUC):
     try:
-      self.cur.execute("insert into cliente values("+str(ID)+",'"+nombre+"','"+RUC+"')")
+      self.cur.execute("insert into cliente values(%s,%s,%s)",(ID,nombre,RUC))
       self.conn.commit()
     except:
       self.conn.rollback()
 
   def guardarProveedorBD(self,ID,nombre,RUC):
     try:
-      self.cur.execute("insert into distribuidor values("+str(ID)+",'"+nombre+"','"+RUC+"')")
+      self.cur.execute("insert into distribuidor values(%s,%s,%s)",(ID,nombre,RUC))
       self.conn.commit()
     except:
       self.conn.rollback()
@@ -192,7 +204,7 @@ class MainWindow(QMainWindow):
 
   def guardarEmpleadoBD(self,ID,nombre,DNI,puesto,sueldo):
     try:
-      self.cur.execute("insert into empleados values(" +str(ID)+" ,'"+nombre+"' , '"+DNI+"' , "+puesto+" ,'"+str(sueldo)+"')")
+      self.cur.execute("insert into empleados values(%s,%s,%s,%s,%s)",(ID,nombre,DNI,puesto,sueldo))
       self.conn.commit()
     except:
       self.conn.rollback()
@@ -231,7 +243,7 @@ class MainWindow(QMainWindow):
 
   def idCliente(self,cliente):
     print (cliente)
-    self.cur.execute("select ID from cliente where nombre='"+cliente+"'")
+    self.cur.execute("select ID from cliente where nombre=%s",(cliente,))
     result=self.cur.fetchall()
     for i in result:
       return i[0]
@@ -245,8 +257,7 @@ class MainWindow(QMainWindow):
     if (IDcliente!=None):
       self.ventas.IDultimaVenta+=1
       ID = self.ventas.IDultimaVenta
-      ejecutar="insert into ventas values("+str(ID)+","+str(IDcliente)+",'"+fecha+"')"
-      self.cur.execute(ejecutar)
+      self.cur.execute("insert into ventas values(%s,%s,%s)",(ID,IDcliente,fecha))
       self.conn.commit()
       self.cerrarVentaDetalle()
       return
@@ -257,7 +268,10 @@ class MainWindow(QMainWindow):
 
   #Consultando el ultimo ID de una tabla
   def ultimoID(self,tabla):
-    self.cur.execute("select MAX(ID) from "+tabla)
+    #Un nombre de tabla no puede ir como parametro: solo se aceptan las conocidas
+    if tabla not in TABLAS_CON_ID:
+      raise ValueError("tabla desconocida: "+repr(tabla))
+    self.cur.execute("select MAX(ID) from `"+tabla+"`")
     results=self.cur.fetchall()
     if(results[0][0]!=None):
       return results[0][0]
@@ -266,6 +280,8 @@ class MainWindow(QMainWindow):
 
   #Iniciando Bolsa de Valores
   def iniciarBV(self):
+    if self.iBolsa is None:
+      return
     self.login.Notificacion.setText("Actualizando ...")
     iBolsa=self.iBolsa
     iBolsa.actualizarDatos()
@@ -296,10 +312,16 @@ class MainWindow(QMainWindow):
     self.ventas.tipoDeCambio.horizontalHeader().setVisible(False);
     self.ventas.tipoDeCambio.setVerticalHeaderLabels(titles)
     print (self.data)
+    #Los ultimos tres dias publicados (dia, compra, venta); la ultima fila
+    #de la tabla de SUNAT puede tener menos de tres dias
+    valores=[ele for fila in self.data[1:] for ele in fila]
+    ultimos=valores[-9:]
+    #Tres columnas fijas: insertColumn(j) dejaba la columna 2 vacia y sumaba
+    #columnas en cada actualizacion
+    self.ventas.tipoDeCambio.setColumnCount(3)
     for j in range (3):
-      self.ventas.tipoDeCambio.insertColumn(j)
       for k in range (3):
-        item=QTableWidgetItem(str(self.data[len(self.data)-1][j*3+k]))
+        item=QTableWidgetItem(str(ultimos[j*3+k]))
         self.ventas.tipoDeCambio.setItem(k,2-j,item)
 
   #Iniciando Recursos Humanos
@@ -343,7 +365,7 @@ class MainWindow(QMainWindow):
 
   #Verificar Administrador en Base de Datos
   def verificarAdministrador(self,usuario,contrasenia):
-    self.cur.execute("select ID from administrador where usuario='"+usuario+"'and contrasenia='"+contrasenia+"' ")
+    self.cur.execute("select ID from administrador where usuario=%s and contrasenia=%s",(usuario,contrasenia))
     results=self.cur.fetchall()
     if len(results)>0:
       return results[0][0]
@@ -355,7 +377,7 @@ class MainWindow(QMainWindow):
     ventaDetalle=self.ventaDetalle
     product_name=ventaDetalle.productos.currentText()
     cantidad=ventaDetalle.cantidadProducto.value()
-    self.cur.execute("select ID,precio from productos where nombre='"+product_name+"'")
+    self.cur.execute("select ID,precio from productos where nombre=%s",(product_name,))
     results=self.cur.fetchall()
     productosVenta=ventaDetalle.productosVenta
     numberRow=productosVenta.rowCount()
@@ -370,7 +392,7 @@ class MainWindow(QMainWindow):
     product_name=compraDetalle.productos.currentText()
     cantidad=compraDetalle.cantidadProducto.value()
     precio=compraDetalle.precioProducto.value()
-    self.cur.execute("select ID,precio from productos where nombre='"+product_name+"'")
+    self.cur.execute("select ID,precio from productos where nombre=%s",(product_name,))
     results=self.cur.fetchall()
     productosCompra=compraDetalle.productosCompra
     numberRow=productosCompra.rowCount()
