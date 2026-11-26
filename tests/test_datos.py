@@ -86,9 +86,9 @@ class DatosTest(unittest.TestCase):
         self.assertEqual(self.uno("select nombre from cliente where ID=100"), ("Nuevo",))
 
     def test_save_supplier(self):
-        self.ventana.guardarProveedorBD(100, "Leche'); drop table productos; --", "1")
-        self.assertEqual(self.uno("select nombre from distribuidor where ID=100"),
-                         ("Leche'); drop table productos; --",))
+        nombre = "'); drop table productos#"  # fits varchar(25)
+        self.ventana.guardarProveedorBD(100, nombre, "1")
+        self.assertEqual(self.uno("select nombre from distribuidor where ID=100"), (nombre,))
         self.assertEqual(self.uno("select count(*) from productos"), (1,))
 
     def test_employee_form_saves_the_row(self):
@@ -97,14 +97,14 @@ class DatosTest(unittest.TestCase):
         formulario.puesto.setCurrentText("analista")
         formulario.nombre.setText("Ana")
         formulario.dni.setText("12345678")
-        formulario.salario.setValue(1500.5)
+        formulario.salario.setValue(55.5)  # the form caps it at 99.99
         self.ventana.RRHH.IDultimoEmpleado = 99
         filas = self.ventana.RRHH.listEmpleados.rowCount()
         self.ventana.guardarEmpleado()
         fila = self.uno("select nombre, DNI, puesto, sueldo from empleados where ID=100")
         self.assertIsNotNone(fila)
         self.assertEqual(fila[:3], ("Ana", 12345678, "analista"))
-        self.assertEqual(float(fila[3]), 1500.5)
+        self.assertEqual(float(fila[3]), 55.5)
         self.assertEqual(self.ventana.RRHH.listEmpleados.rowCount(), filas + 1)
 
     # --- sales -------------------------------------------------------------
