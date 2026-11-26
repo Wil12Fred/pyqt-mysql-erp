@@ -1,13 +1,38 @@
-name: build
+name: CI
 on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
     env:
       QT_QPA_PLATFORM: offscreen
+      BDERP_TEST_DB: "1"
+      BDERP_DB_HOST: 127.0.0.1
+      BDERP_DB_USER: BDERP
+      BDERP_DB_PASSWORD: bderp-ci
+      BDERP_DB_NAME: BDERP
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root-ci
+          MYSQL_DATABASE: BDERP
+          MYSQL_USER: BDERP
+          MYSQL_PASSWORD: bderp-ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-ci"
+          --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libgl1
-      - run: uv sync --locked
-      - run: uv run python -m unittest discover -s tests -v
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libgl1 mysql-client
+      - name: Load BDERP.sql
+        run: mysql -h 127.0.0.1 -u BDERP -pbderp-ci BDERP < BDERP.sql
+      - run: uv sync --locked --all-extras
+      - name: Smoke, logic and MySQL integration tests
+        run: uv run python -m unittest discover -s tests -v
+      - name: Smoke tests without the optional Twitter extra
+        run: |
+          uv sync --locked
+          BDERP_TEST_DB=0 uv run python -m unittest discover -s tests -v

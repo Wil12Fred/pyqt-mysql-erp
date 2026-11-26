@@ -32,6 +32,10 @@ class SmokeTest(unittest.TestCase):
                 form_class().setupUi(widget)
 
     def test_twitter_client_builds_without_credentials(self):
+        try:
+            import twitter  # noqa: F401
+        except ImportError:
+            self.skipTest("python-twitter not installed (uv sync --extra twitter)")
         import infoBolsa
         self.assertIsNotNone(infoBolsa.infBolsa().api)
 
