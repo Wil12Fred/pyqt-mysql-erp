@@ -3,8 +3,9 @@ import twitter
 import unittest
 import json
 import queue
+import os
 
-# Variables that contains the user credentials to access Twitter API
+# Twitter API credentials are read from the environment (see .env.example)
 class tweetComp():
   def __init__(self,tweet):
     self.tweet=tweet
@@ -21,10 +22,10 @@ class infBolsa():
     self.ids=set([])
     self.tweets=queue.PriorityQueue()
     self.api= twitter.Api(
-    consumer_key = 'psPRnpYkwCJP1zkuKKIp6A18h',
-    consumer_secret = '3kOkRIcPeyN1CmzUTgVjB5ESDmlliwDcBwbyQxolMxGnNmgrmD',
-    access_token_key = '750445380819640321-p1vufLPwUJaKr75SSJTIpvOwvlxkjHJ',
-    access_token_secret = '8l4Me33FefOTRc0YO6KSIlFFR6L3X46itnGYpcJnSN3pc')
+    consumer_key = os.environ.get("TWITTER_CONSUMER_KEY"),
+    consumer_secret = os.environ.get("TWITTER_CONSUMER_SECRET"),
+    access_token_key = os.environ.get("TWITTER_ACCESS_TOKEN_KEY"),
+    access_token_secret = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET"))
 
   def informacionTwitter(self):
     self.topTweets=self.api.GetSearch(term="(#stockmarket #stocks 'stock market')",count=5)

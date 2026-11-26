@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import urllib
 import infoBolsa
 import sys
+import os
 import pymysql
 from PyQt5.QtCore import QFile,QFileInfo,QPoint,QSettings,QSignalMapper,QSize,QTextStream,Qt,QCoreApplication
 from PyQt5.QtGui import QIcon,QKeySequence,QTextDocument,QTextBlock,QStandardItemModel,QStandardItem,QBrush
@@ -52,7 +53,10 @@ class MainWindow(QMainWindow):
     uic.loadUi("mainwindow.ui",self)
 
     #Variables fijas
-    self.conn=iniciarBD('localhost','BDERP','Bob1_esponj2','BDERP')
+    self.conn=iniciarBD(os.environ.get('BDERP_DB_HOST','localhost'),
+                        os.environ.get('BDERP_DB_USER','BDERP'),
+                        os.environ.get('BDERP_DB_PASSWORD',''),
+                        os.environ.get('BDERP_DB_NAME','BDERP'))
     self.cur=self.conn.cursor()
     self.mdiArea = QMdiArea()
     self.windowMapper = QSignalMapper(self)
