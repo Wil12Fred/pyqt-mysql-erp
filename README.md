@@ -1,4 +1,6 @@
-# BDERP — PyQt5 + MySQL ERP prototype
+# pyqt-mysql-erp
+
+> BDERP — PyQt5 + MySQL ERP prototype
 
 A small desktop ERP written in Python 3 with PyQt5 (MDI window, Qt Designer
 `.ui` forms) on top of a MySQL database accessed with PyMySQL. University
