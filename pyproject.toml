@@ -5,7 +5,7 @@ description = "PyQt5 + MySQL desktop ERP prototype (purchases, sales, HR, stock-
 requires-python = ">=3.9"
 dependencies = [
     "PyQt5>=5.15,<5.16",
-    "PyMySQL>=1.1,<2",
+    "PyMySQL[rsa]>=1.1,<2",  # rsa: MySQL 8 caching_sha2_password
     "python-twitter>=3.5,<4",
     "beautifulsoup4>=4.12,<5",
 ]
