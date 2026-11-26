@@ -26,12 +26,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libgl1 mysql-client
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libgl1 mysql-client xvfb libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 libxcb-shape0 libxcb-cursor0
       - name: Load BDERP.sql
         run: mysql -h 127.0.0.1 -u BDERP -pbderp-ci BDERP < BDERP.sql
       - run: uv sync --locked --all-extras
       - name: Smoke, logic and MySQL integration tests
         run: uv run python -m unittest discover -s tests -v
+      - name: Start the application against the database (still running after 10 s = pass)
+        run: |
+          set +e
+          QT_QPA_PLATFORM= xvfb-run -a timeout 10 uv run python presentacion.pyw
+          status=$?
+          echo "presentacion.pyw exit status: $status"
+          test $status -eq 124
       - name: Smoke tests without the optional Twitter extra
         run: |
           uv sync --locked
